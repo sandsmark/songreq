@@ -14,6 +14,7 @@ struct AVFormatContext;
 struct AVCodecContext;
 struct AVCodec;
 struct AVPacket;
+struct SwrContext;
 
 struct Fingerprinter;
 
@@ -47,21 +48,24 @@ private:
     void threadLoop();
     static std::string ffmpegError(const int ret);
 
-    SlidingDFT<double, 1024> m_dft;
-    Resampler m_resampler;
+    SlidingDFT<int16_t, 1024> m_dft;
 
     // Because ffmpeg takes double pointers, because it is a C library, but
     // that is incompatible with how we store them.
     static void formatDeleter(AVFormatContext *fmt);
     static void codecDeleter(AVCodecContext *codec);
+    static void frameDeleter(AVFrame *frame);
+    static void resamplerDeleter(SwrContext *context);
 
     dlib::pipe<Fingerprint> m_signatures;
 
     // ffmpeg
     std::unique_ptr<AVFormatContext, decltype(&formatDeleter)> m_format;
-    std::unique_ptr<AVCodecContext, decltype(&codecDeleter)> m_codec;
-    std::unique_ptr<AVCodec> m_decoder;
+    std::unique_ptr<AVCodecContext, decltype(&codecDeleter)> m_decoder;
     std::unique_ptr<AVPacket, decltype(&::av_packet_unref)> m_packet;
+    std::unique_ptr<AVFrame, decltype(&frameDeleter)> m_frame;
+    std::unique_ptr<SwrContext, decltype(&resamplerDeleter)> m_resampler;
+    int m_audioStream = -1;
 
     std::mutex m_quitMutex;
 };
